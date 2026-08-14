@@ -1453,20 +1453,72 @@ function viewAbout(){
     <p>Every result comes with the formula behind it, shown openly, so you can verify the math or learn how it works. We don't use fake statistics, testimonials, or invented market data anywhere on this site.</p>
   `);
 }
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/xwleqqln";
+
 function viewContact(){
   viewStatic("Contact", "Contact", `
     <h1>Contact</h1>
     <p>Have a question, spotted an error, or want to request a calculator we don't have yet? We'd like to hear from you.</p>
     <div class="panel" style="max-width:480px;">
       <h2 style="margin-bottom:14px;">Send a message</h2>
-      <div class="field"><label for="c-name">Name</label><div class="input-wrap"><input id="c-name" type="text" placeholder="Your name"></div></div>
-      <div class="field"><label for="c-email">Email</label><div class="input-wrap"><input id="c-email" type="email" placeholder="you@example.com"></div></div>
-      <div class="field"><label for="c-msg">Message</label><div class="input-wrap"><input id="c-msg" type="text" placeholder="How can we help?"></div></div>
+      <div class="notice" id="contact-notice"></div>
+      <div class="field" id="field-c-name"><label for="c-name">Name</label><div class="input-wrap"><input id="c-name" type="text" placeholder="Your name"></div><div class="field-error">Please enter your name.</div></div>
+      <div class="field" id="field-c-email"><label for="c-email">Email</label><div class="input-wrap"><input id="c-email" type="email" placeholder="you@example.com"></div><div class="field-error">Please enter a valid email address.</div></div>
+      <div class="field" id="field-c-msg"><label for="c-msg">Message</label><div class="input-wrap"><input id="c-msg" type="text" placeholder="How can we help?"></div><div class="field-error">Please enter a message.</div></div>
       <button class="btn btn-primary btn-block" id="contact-send">Send message</button>
     </div>
   `);
-  document.getElementById("contact-send").addEventListener("click", ()=>{
-    alert("Thanks — connect a form backend (e.g. Formspree) or a mailto: link to actually receive messages.");
+
+  const notice = document.getElementById("contact-notice");
+  const btn = document.getElementById("contact-send");
+
+  function showFieldError(id, show){
+    const el = document.getElementById("field-"+id);
+    el.classList.toggle("invalid", show);
+  }
+  function showNotice(msg, isError){
+    notice.textContent = msg;
+    notice.classList.add("show");
+    notice.style.background = isError ? "var(--danger-tint)" : "var(--success-tint)";
+    notice.style.color = isError ? "var(--danger)" : "var(--success)";
+    notice.style.borderColor = isError ? "var(--danger)" : "var(--success)";
+  }
+
+  btn.addEventListener("click", async ()=>{
+    const name = document.getElementById("c-name").value.trim();
+    const email = document.getElementById("c-email").value.trim();
+    const message = document.getElementById("c-msg").value.trim();
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    showFieldError("c-name", !name);
+    showFieldError("c-email", !emailValid);
+    showFieldError("c-msg", !message);
+    if(!name || !emailValid || !message) return;
+
+    notice.classList.remove("show");
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+
+    try{
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "Accept":"application/json"},
+        body: JSON.stringify({name, email, message})
+      });
+      if(res.ok){
+        showNotice("Thanks — your message has been sent. We'll get back to you soon.", false);
+        document.getElementById("c-name").value = "";
+        document.getElementById("c-email").value = "";
+        document.getElementById("c-msg").value = "";
+      } else {
+        showNotice("Something went wrong sending your message. Please try again in a moment.", true);
+      }
+    } catch(err){
+      showNotice("Couldn't reach the server — check your connection and try again.", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send message";
+    }
   });
 }
 function viewPrivacy(){
